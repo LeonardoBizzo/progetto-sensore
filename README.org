@@ -1,27 +1,39 @@
 #+TITLE: Progetto scuola
 
-* Parti
-- Arduino (leo)
-- Xampp (apache, php) (leo)
-- JSON (leo)
-- DB (cri, vince)
-- pagina html (samuel)
-- UML (cri)
+* Progetto che prima o poi avrà un nome
+** Compiti
+*** Leonardo Bizzoni
+- Programmazione arduino
+- Gestione interazioni arduino → server, client → server
+- Documentazione del progetto
 
-** Parte arduino
+*** Cristian Bonomi
+- Gestione DB con phpMyAdmin
+- UML
+
+*** Vincenzo Palermo
+- Gestione DB con phpMyAdmin
+- Programmazione front-end
+
+*** Samuel Codispoti
+- Programmazione front-end
+- Gestione interazioni client → server
+
+** Tecnologie
+*** Parte arduino
 Hardware:
 - Arduino board
-- Sensore infrarossi
+- Passive infrared motion sensor
 - Ethernet shield
 
-Collegare supporto ethernet alla board arduino e il sensore infrarossi.
-Il sensore infrarossi rileva i dati e li comunica alla board che a sua volta li invia al server attraverso una HTTP/GET request.
+Collegare supporto ethernet alla board arduino e il sensore.
+Il sensore rileva i dati e li comunica alla board che a sua volta li invia al server attraverso una HTTP/GET request.
 
-** Parte server
+*** Parte server
 Tecnologie:
 - JSON
 - Apache
-- phpMyAdmin(DB)
+- phpMyAdmin
 - PHP
 
 Apache riceve la HTTP/GET request.
@@ -31,13 +43,13 @@ Quando un client accede alla pagina web, JS invia una HTTP/GET request al server
 PHP elabora la request, preleva i dati dal DB e li formatta in JSON per inviarli al client.
 Il client riceve il JSON, preleva i dati e li mostra sulla pagina web.
 
-* Idee
-** 1 - Acquisizione dati
+** Idee
+*** 1 - Acquisizione dati
 Arduino legge valori da un sensore infrarossi.
 Invia una get request (php).
 Php prende i dati della get e li mette su un DB.
 
-** 2 - Comunicazione con la pagina web
+*** 2 - Comunicazione con la pagina web
 Un client invia una richiesta al server per i valori letti dall'arduino (che sono nel DB)
 Ogni tot il client invia una request al server.
 
@@ -47,7 +59,7 @@ Php risponde con il JSON
 JS se ci sono più di 15 persone cambia il colore di un quadratino sulla pagina a rosso. (Normalmente è verde)
 Per ogni persona che entra mostrare un'icona sulla pagina.
 
-** 3
+*** 3
 Il client riceve il JSON, lo interpreta e aggiorna il grafico.
 
 /Ogni tot cambia colore il grafico per simbologgiare il valore letto/.
