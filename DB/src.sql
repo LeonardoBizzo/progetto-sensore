@@ -25,13 +25,13 @@ SET time_zone = "+00:00";
 -- --------------------------------------------------------
 
 --
--- Struttura della tabella `ciao`
+-- Struttura della tabella `Valori`
 --
 
-CREATE TABLE `ciao` (
-  `idsensore` int(11) NOT NULL,
-  `numPersone` int(11) DEFAULT NULL,
-  `agg` datetime DEFAULT NULL
+CREATE TABLE `Valori` (
+  `ID_lettura` int(11) NOT NULL,
+  `num_persone` int(11) DEFAULT NULL,
+  `timestamp_lettura` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 --
@@ -39,20 +39,20 @@ CREATE TABLE `ciao` (
 --
 
 --
--- Indici per le tabelle `ciao`
+-- Indici per le tabelle `Valori`
 --
-ALTER TABLE `ciao`
-  ADD PRIMARY KEY (`idsensore`);
+ALTER TABLE `Valori`
+  ADD PRIMARY KEY (`ID_lettura`);
 
 --
 -- AUTO_INCREMENT per le tabelle scaricate
 --
 
 --
--- AUTO_INCREMENT per la tabella `ciao`
+-- AUTO_INCREMENT per la tabella `Valori`
 --
-ALTER TABLE `ciao`
-  MODIFY `idsensore` int(11) NOT NULL AUTO_INCREMENT;COMMIT;
+ALTER TABLE `Valori`
+  MODIFY `ID_lettura` int(11) NOT NULL AUTO_INCREMENT;COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
