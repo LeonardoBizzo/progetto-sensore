@@ -9,14 +9,14 @@
 - [[#tecnologie-utilizzate][Tecnologie utilizzate]]
   - [[#parte-arduino][Parte arduino]]
   - [[#parte-server][Parte server]]
-- [[#codice-arduino][Codice arduino]]
-  - [[#librerie-e-inizializzazione-variabili][Librerie e inizializzazione variabili]]
-  - [[#funzione-di-setup][Funzione di setup]]
-  - [[#funzione-di-loop][Funzione di loop]]
-- [[#idee][Idee]]
-  - [[#1---acquisizione-dati][1 - Acquisizione dati]]
-  - [[#2---comunicazione-con-la-pagina-web][2 - Comunicazione con la pagina web]]
-  - [[#3][3]]
+- [[#implementazione][Implementazione]]
+  - [[#codice-arduino][Codice arduino]]
+    - [[#librerie-e-inizializzazione-variabili][Librerie e inizializzazione variabili]]
+    - [[#funzione-di-setup][Funzione di setup]]
+    - [[#funzione-di-loop][Funzione di loop]]
+  - [[#codice-backend---php][Codice backend - PHP]]
+    - [[#arduinohandler---come-registrare-il-dato-rilevato-dal-sensore-nel-database][ArduinoHandler - Come registrare il dato rilevato dal sensore nel database]]
+    - [[#userhandler---come-prelevare-i-dati-dal-database][UserHandler - Come prelevare i dati dal database]]
 
 * Compiti
 ** Leonardo Bizzoni
@@ -60,21 +60,22 @@ Quando un client accede alla pagina web, JS invia una HTTP/GET request al server
 PHP elabora la request, preleva i dati dal DB e li formatta in JSON per inviarli al client.
 Il client riceve il JSON, preleva i dati e li mostra sulla pagina web.
 
-* Codice arduino
-** Librerie e inizializzazione variabili
+* Implementazione
+** Codice arduino
+*** Librerie e inizializzazione variabili
 La libreria /Ethernet.h/ permette ad Arduino con dispositivi di reti basati su W5100 / W5200 / *W5500* di connetersi alla rete.
-#+begin_src arduino :tangle ./Arduino/main.ino
+#+begin_src cpp :tangle ./Arduino/main.ino
 #include <Ethernet.h>
 #+end_src
 
 Crea una constante /pirSensor/ con il valore 2 che è il pin sulla board arduino a cui il PIR sensor è collegato.
-#+begin_src arduino :tangle ./Arduino/main.ino
+#+begin_src cpp :tangle ./Arduino/main.ino
 #define pirSensor 2
 #+end_src
 
 È necessario specificare l'indirizzo MAC, IP dell'arduino e l'indirizzo IP del server a cui vogliamo connetterci.
 È possibile utilizzare un domain name al posto dell'IP del server ma, per semplicità, utlizzeremo l'IP numerico.
-#+begin_src arduino :tangle ./Arduino/main.ino
+#+begin_src cpp :tangle ./Arduino/main.ino
 byte mac[] = { 0xA8, 0x61, 0x0A, 0xAE, 0x84, 0xB4 };
 IPAddress ip(192, 168, 1, 177);
 
@@ -84,45 +85,35 @@ EthernetClient client;
 String postData;
 #+end_src
 
-** Funzione di setup
-/Aprire la comunicazione seriale è solo per il debugging./
+*** Funzione di setup
 Imposta la constante /pirSensor/ in modalità ingresso per la lettura dei dati.
 Comincia la sessione ethernet e aspetta che si inizializzi l'ethernet shield.
 
-#+begin_src arduino :tangle ./Arduino/main.ino
+#+begin_src cpp :tangle ./Arduino/main.ino
 void setup() {
   pinMode(pirSensor, INPUT);
-
   Serial.begin(9600);
-  while (!Serial) {
-    ;
-  }
 
-  Serial.println("Initialize Ethernet with static IP:");
   Ethernet.begin(mac, ip); // apre la sessione ethernet
 
   delay(1000);
-  Serial.print("connecting to ");
-  Serial.print(server);
-  Serial.println("...");
 }
 #+end_src
 
-** Funzione di loop
+*** Funzione di loop
 La funziona /loop/ viene chiamata costantemente, ogni ciclo controlla che il valore letto dal PIR sensor sia /HIGH/ e prova a connetersi al server.
 /client.connect(server, 80)/ restituisce /true/ se la connessione è avvenuta con successo e /false/ se qualcosa non è andato a buon fine.
 
 Se il valore letto è /HIGH/ e riesce a connettersi al server allora invia una HTTP/POST con il valore /data=movimento/ che il server dovrà poi ricevere e immagazzinare nel database.
 
-#+begin_src arduino :tangle ./Arduino/main.ino
+#+begin_src cpp :tangle ./Arduino/main.ino
 void loop() {
+  Serial.println("Inizio loop");
   if (digitalRead(pirSensor) == HIGH && client.connect(server, 80)) {
-    postData = "data=movimento";
+    Serial.println("Sto inviando");
+    postData = "datiSensore=movimento";
 
-    Serial.print("connected to ");
-    Serial.println(client.remoteIP());
-
-    client.println("POST /ProgettoScuola0/arduino_test.php HTTP/1.1");
+    client.println("POST /ProgettoScuola0/index.php HTTP/1.1");
     client.print("Host: ");
     client.println(server);
     client.println("Content-Type: application/x-www-form-urlencoded");
@@ -131,7 +122,7 @@ void loop() {
     client.println();
     client.println(postData);
 
-    Serial.println("Connessione avvenuta");
+    Serial.println("In attesa");
     delay(2000);
   }
 
@@ -140,23 +131,49 @@ void loop() {
 }
 #+end_src
 
-* Idee
-** 1 - Acquisizione dati
-Arduino legge valori da un sensore infrarossi.
-Invia una get request (php).
-Php prende i dati della get e li mette su un DB.
+** Codice backend - PHP
+Ogni volta che il sensore PIR montato sull'arduino rileva movimento lo invia alla pagina "index.php".
+Index.php, oltre a contenere il codice HTML da mostrare all'utente, include 2 script:
+- *arduinoHandler.php*: gestisce le richieste che riceve dall'arduino
+- *userHandler.php*: gestisce le richieste che riceve dall'utente
 
-** 2 - Comunicazione con la pagina web
-Un client invia una richiesta al server per i valori letti dall'arduino (che sono nel DB)
-Ogni tot il client invia una request al server.
+*** ArduinoHandler - Come registrare il dato rilevato dal sensore nel database
+/Questo viene incluso utilizzando "include" in index.php./
 
-Php riceve la request recupera i dati e li formatta in JSON e lo manda al client.
-Php risponde con il JSON
+Se nell'array "$_POST" esiste il campo "arduinoData", la richiesta proviene dall'arduino e bisogna registarla nel database.
 
-JS se ci sono più di 15 persone cambia il colore di un quadratino sulla pagina a rosso. (Normalmente è verde)
-Per ogni persona che entra mostrare un'icona sulla pagina.
+Per registrare il valore nel database bisogna creare un oggetto "mysqli" fornendo come parametri:
+- *indirizzo IP + subnet*
+- *username*
+- *password*
+- *nome del database*
+Se questa fase fallisce allora viene chiamata la funzione "die" con un messaggio che mostra l'errore.
 
-** 3
-Il client riceve il JSON, lo interpreta e aggiorna il grafico.
+Una volta creato l'oggetto "mysqli" possiamo utilizzarne il metodo "query" per invia una query al database.
 
-/Ogni tot cambia colore il grafico per simbologgiare il valore letto/.
+#+begin_src php :tangle ./php/arduinoHandler.php
+<?php
+if (isset($_POST["datiSensore"])) {
+    $sql = new mysqli("localhost:3306", "root", "", "DatiSensore") or die("Connection error:" . $sql->error);
+    $sql->query("INSERT INTO `Valori`(`num_persone`, `timestamp_lettura`) VALUES ('1','".date("Y-m-d H:i:s")."')");
+
+    $sql->close();
+}
+?>
+#+end_src
+
+*** UserHandler - Come prelevare i dati dal database
+#+begin_src php :tangle ./php/userHandler.php
+<?php
+if (is_null($_POST["data"])) {
+    $sql = new mysqli("localhost:3306", "root", "", "DatiSensore") or die("Connection error:" . $sql->error);
+    $result = $sql->query("SELECT * FROM `Valori`");
+
+    while ($row = $result->fetch_assoc()) {
+        print_r($row);
+    }
+
+    $sql->close();
+}
+?>
+#+end_src
