@@ -12,7 +12,6 @@ String postData;
 
 void setup() {
   pinMode(pirSensor, INPUT);
-  Serial.begin(9600);
 
   Ethernet.begin(mac, ip); // apre la sessione ethernet
 
@@ -20,9 +19,7 @@ void setup() {
 }
 
 void loop() {
-  Serial.println("Inizio loop");
   if (digitalRead(pirSensor) == HIGH && client.connect(server, 80)) {
-    Serial.println("Sto inviando");
     postData = "datiSensore=movimento";
 
     client.println("POST /ProgettoScuola0/index.php HTTP/1.1");
@@ -34,7 +31,6 @@ void loop() {
     client.println();
     client.println(postData);
 
-    Serial.println("In attesa");
     delay(2000);
   }
 

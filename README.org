@@ -92,7 +92,6 @@ Comincia la sessione ethernet e aspetta che si inizializzi l'ethernet shield.
 #+begin_src cpp :tangle ./Arduino/main.ino
 void setup() {
   pinMode(pirSensor, INPUT);
-  Serial.begin(9600);
 
   Ethernet.begin(mac, ip); // apre la sessione ethernet
 
@@ -108,9 +107,7 @@ Se il valore letto è /HIGH/ e riesce a connettersi al server allora invia una H
 
 #+begin_src cpp :tangle ./Arduino/main.ino
 void loop() {
-  Serial.println("Inizio loop");
   if (digitalRead(pirSensor) == HIGH && client.connect(server, 80)) {
-    Serial.println("Sto inviando");
     postData = "datiSensore=movimento";
 
     client.println("POST /ProgettoScuola0/index.php HTTP/1.1");
@@ -122,7 +119,6 @@ void loop() {
     client.println();
     client.println(postData);
 
-    Serial.println("In attesa");
     delay(2000);
   }
 
@@ -171,6 +167,7 @@ if (is_null($_POST["data"])) {
 
     while ($row = $result->fetch_assoc()) {
         print_r($row);
+        echo "</br>";
     }
 
     $sql->close();
