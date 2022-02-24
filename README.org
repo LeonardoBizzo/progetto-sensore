@@ -139,7 +139,7 @@ Index.php, oltre a contenere il codice HTML da mostrare all'utente, include 2 sc
 Se nell'array "$_POST" esiste il campo "arduinoData", la richiesta proviene dall'arduino e bisogna registarla nel database.
 
 Per registrare il valore nel database bisogna creare un oggetto "mysqli" fornendo come parametri:
-- *indirizzo IP + subnet*
+- *indirizzo IP + numero di porta*
 - *username*
 - *password*
 - *nome del database*
