@@ -6,7 +6,7 @@
 - [[#realizzazione-del-progetto][Realizzazione del progetto]]
   - [[#installazione-del-web-server][Installazione del web server]]
   - [[#creazione-del-database][Creazione del Database]]
-    - [[#installazione-apache-php-mariadb][Installazione Apache, PHP, mariadb]]
+    - [[#installazione-mariadb][Installazione mariadb]]
     - [[#creazione-del-database-1][Creazione del Database]]
   - [[#crezione-del-backend---php][Crezione del backend - PHP]]
     - [[#arduinohandler---come-registrare-il-dato-rilevato-dal-sensore-nel-database][ArduinoHandler - Come registrare il dato rilevato dal sensore nel database]]
@@ -15,7 +15,6 @@
     - [[#librerie-e-inizializzazione-variabili][Librerie e inizializzazione variabili]]
     - [[#funzione-di-setup][Funzione di setup]]
     - [[#funzione-di-loop][Funzione di loop]]
-  - [[#cablaggio-di-arduino][Cablaggio di Arduino]]
   - [[#realizzazione-interfaccia-web][Realizzazione interfaccia web]]
 
 * Introduzione
@@ -48,8 +47,11 @@ Quando un utente visita la pagina vede un tot di avatar in base a quante persone
 
 * Realizzazione del progetto
 ** Installazione del web server
+#TODO: installare apache + PHP (*container* / VM)
+
 ** Creazione del Database
-*** Installazione Apache, PHP, mariadb
+*** Installazione mariadb
+#TODO: installare mariadb (*container* / VM)
 
 *** Creazione del Database
 Una volta attivato il daemon mariadb è possibile accedere da riga di comando fornendo il nome utente e la password.
@@ -113,6 +115,8 @@ if (is_null($_POST["data"])) {
 #+end_src
 
 ** Sketch arduino "main.imo"
+#TODO: aggiungere buffer di memoria per quando non riesce a connettersi al server
+
 *** Librerie e inizializzazione variabili
 La libreria /Ethernet.h/ permette ad Arduino con dispositivi di reti basati su W5100 / W5200 / *W5500* di connetersi alla rete.
 #+begin_src cpp :tangle ./Arduino/main.ino
@@ -178,5 +182,5 @@ void loop() {
 }
 #+end_src
 
-** Cablaggio di Arduino
 ** Realizzazione interfaccia web
+#TODO: effettivamente scrivere il codice
