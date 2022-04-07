@@ -1,67 +1,118 @@
 #+TITLE: Progetto scuola
 
 * Table of Contents :TOC_3:noexport:
-- [[#compiti][Compiti]]
-  - [[#leonardo-bizzoni][Leonardo Bizzoni]]
-  - [[#cristian-bonomi][Cristian Bonomi]]
-  - [[#vincenzo-palermo][Vincenzo Palermo]]
-  - [[#samuel-codispoti][Samuel Codispoti]]
-- [[#tecnologie-utilizzate][Tecnologie utilizzate]]
-  - [[#parte-arduino][Parte arduino]]
-  - [[#parte-server][Parte server]]
-- [[#implementazione][Implementazione]]
-  - [[#codice-arduino][Codice arduino]]
+- [[#introduzione][Introduzione]]
+- [[#descrizione-del-progetto][Descrizione del progetto]]
+- [[#realizzazione-del-progetto][Realizzazione del progetto]]
+  - [[#installazione-del-web-server][Installazione del web server]]
+  - [[#creazione-del-database][Creazione del Database]]
+    - [[#installazione-apache-php-mariadb][Installazione Apache, PHP, mariadb]]
+    - [[#creazione-del-database-1][Creazione del Database]]
+  - [[#crezione-del-backend---php][Crezione del backend - PHP]]
+    - [[#arduinohandler---come-registrare-il-dato-rilevato-dal-sensore-nel-database][ArduinoHandler - Come registrare il dato rilevato dal sensore nel database]]
+    - [[#userhandler---come-prelevare-i-dati-dal-database][UserHandler - Come prelevare i dati dal database]]
+  - [[#sketch-arduino-mainimo][Sketch arduino "main.imo"]]
     - [[#librerie-e-inizializzazione-variabili][Librerie e inizializzazione variabili]]
     - [[#funzione-di-setup][Funzione di setup]]
     - [[#funzione-di-loop][Funzione di loop]]
-  - [[#codice-backend---php][Codice backend - PHP]]
-    - [[#arduinohandler---come-registrare-il-dato-rilevato-dal-sensore-nel-database][ArduinoHandler - Come registrare il dato rilevato dal sensore nel database]]
-    - [[#userhandler---come-prelevare-i-dati-dal-database][UserHandler - Come prelevare i dati dal database]]
+  - [[#cablaggio-di-arduino][Cablaggio di Arduino]]
+  - [[#realizzazione-interfaccia-web][Realizzazione interfaccia web]]
 
-* Compiti
-** Leonardo Bizzoni
-- Programmazione arduino
-- Gestione interazioni arduino → server, client → server
-- Documentazione del progetto
+* Introduzione
+Lo scopo del progetto è di realizzare un sistema di:
+- Rilevare il movimento di una persona.
+- Inviare il dato ad un server web.
+- Rappresentare il dato con un avatar.
+- Visualizzare sulla pagina web gli avatar.
 
-** Cristian Bonomi
-- Gestione DB con phpMyAdmin
-- UML
+* Descrizione del progetto
+L'acquisizione del movimento viene rilevata dal sensore PIR (HC-SR501) collegato all'arduino UNO.
 
-** Vincenzo Palermo
-- Gestione DB con phpMyAdmin
-- Programmazione front-end
+Il sensore si collega alla board attraverso 3 cavi.
+[[./media/pinoutSensore.jpg]]
 
-** Samuel Codispoti
-- Programmazione front-end
-- Gestione interazioni client → server
+Posizionando il sensore come in figura:
+- Il pin in alto va collegato alla messa a terra.
+- Il pin centrale va collegato ad una porta seriale, nel nostro caso alla porta seriale 2.
+- L'ultimo pin va collegato alla porta 5V dell'arduino.
+[[./media/connessione.jpg]]
 
-* Tecnologie utilizzate
-** Parte arduino
-Hardware:
-- Arduino board
-- Passive infrared motion sensor
-- Ethernet shield
+Arduino UNO di base non è dotato di una porta Ethernet o di un'antenna wi-fi perciò è necessario dotare la board Arduino con uno shild Ethernet (W5100).
+Lo shield viene posizionato direttamente sopra la board Arduino, come in figura.
+Una volta collegato lo shild alla board bisogna programmare la board adeguatamente per sfruttare le capacità dello shild.
+[[./media/arduinoShield.jpg]]
 
-Collegare supporto ethernet alla board arduino e il sensore.
-Il sensore rileva i dati e li comunica alla board che a sua volta li invia al server attraverso una HTTP/POST request.
+Una volta che il web server riceve il dato attraverso una richiesta HTTP POST, crea una connessione al database server e crea un nuovo record contenente il timestamp del rilevamento ed il valore(1).
 
-** Parte server
-Tecnologie:
-- JSON
-- Apache
-- phpMyAdmin
-- PHP
+Quando un utente visita la pagina vede un tot di avatar in base a quante persone/movimenti sono registrati nel database che sono stati registrati null'ultima ore.
 
-Apache riceve la HTTP/POST request.
-PHP elabora la request leggendo i dati, scrive una SQL query per inserirli nel DB.
+* Realizzazione del progetto
+** Installazione del web server
+** Creazione del Database
+*** Installazione Apache, PHP, mariadb
 
-Quando un client accede alla pagina web, JS invia una HTTP/GET request al server per leggere i dati nel DB.
-PHP elabora la request, preleva i dati dal DB e li formatta in JSON per inviarli al client.
-Il client riceve il JSON, preleva i dati e li mostra sulla pagina web.
+*** Creazione del Database
+Una volta attivato il daemon mariadb è possibile accedere da riga di comando fornendo il nome utente e la password.
 
-* Implementazione
-** Codice arduino
+Creare il database e specificare quale database utilizzeremo.
+[[./media/db0.png]]
+
+Creare la tabella che conterrà i valori acquisiti dall'arduino.
+[[./media/db1.png]]
+
+Impostare la *primary key* e metterla *auto_increment*.
+[[./media/db3.png]]
+[[./media/db4.png]]
+
+** Crezione del backend - PHP
+Ogni volta che il sensore PIR montato sull'arduino rileva movimento lo invia alla pagina "index.php".
+Index.php, oltre a contenere il codice HTML da mostrare all'utente, include 2 script:
+- *arduinoHandler.php*: gestisce le richieste che riceve dall'arduino
+- *userHandler.php*: gestisce le richieste che riceve dall'utente
+
+*** ArduinoHandler - Come registrare il dato rilevato dal sensore nel database
+/Questo viene incluso utilizzando "include" in index.php./
+
+Se nell'array "$_POST" esiste il campo "arduinoData", la richiesta proviene dall'arduino e bisogna registarla nel database.
+
+Per registrare il valore nel database bisogna creare un oggetto "mysqli" fornendo come parametri:
+- *indirizzo IP + numero di porta*
+- *username*
+- *password*
+- *nome del database*
+Se questa fase fallisce allora viene chiamata la funzione "die" con un messaggio che mostra l'errore.
+
+Una volta creato l'oggetto "mysqli" possiamo utilizzarne il metodo "query" per invia una query al database.
+
+#+begin_src php :tangle ./php/arduinoHandler.php
+<?php
+if (isset($_POST["datiSensore"])) {
+    $sql = new mysqli("localhost:3306", "root", "", "DatiSensore") or die("Connection error:" . $sql->error);
+    $sql->query("INSERT INTO `Valori`(`num_persone`, `timestamp_lettura`) VALUES ('1','".date("Y-m-d H:i:s")."')");
+
+    $sql->close();
+}
+?>
+#+end_src
+
+*** UserHandler - Come prelevare i dati dal database
+#+begin_src php :tangle ./php/userHandler.php
+<?php
+if (is_null($_POST["data"])) {
+    $sql = new mysqli("localhost:3306", "root", "", "DatiSensore") or die("Connection error:" . $sql->error);
+    $result = $sql->query("SELECT * FROM `Valori`");
+
+    while ($row = $result->fetch_assoc()) {
+        print_r($row);
+        echo "</br>";
+    }
+
+    $sql->close();
+}
+?>
+#+end_src
+
+** Sketch arduino "main.imo"
 *** Librerie e inizializzazione variabili
 La libreria /Ethernet.h/ permette ad Arduino con dispositivi di reti basati su W5100 / W5200 / *W5500* di connetersi alla rete.
 #+begin_src cpp :tangle ./Arduino/main.ino
@@ -127,50 +178,5 @@ void loop() {
 }
 #+end_src
 
-** Codice backend - PHP
-Ogni volta che il sensore PIR montato sull'arduino rileva movimento lo invia alla pagina "index.php".
-Index.php, oltre a contenere il codice HTML da mostrare all'utente, include 2 script:
-- *arduinoHandler.php*: gestisce le richieste che riceve dall'arduino
-- *userHandler.php*: gestisce le richieste che riceve dall'utente
-
-*** ArduinoHandler - Come registrare il dato rilevato dal sensore nel database
-/Questo viene incluso utilizzando "include" in index.php./
-
-Se nell'array "$_POST" esiste il campo "arduinoData", la richiesta proviene dall'arduino e bisogna registarla nel database.
-
-Per registrare il valore nel database bisogna creare un oggetto "mysqli" fornendo come parametri:
-- *indirizzo IP + numero di porta*
-- *username*
-- *password*
-- *nome del database*
-Se questa fase fallisce allora viene chiamata la funzione "die" con un messaggio che mostra l'errore.
-
-Una volta creato l'oggetto "mysqli" possiamo utilizzarne il metodo "query" per invia una query al database.
-
-#+begin_src php :tangle ./php/arduinoHandler.php
-<?php
-if (isset($_POST["datiSensore"])) {
-    $sql = new mysqli("localhost:3306", "root", "", "DatiSensore") or die("Connection error:" . $sql->error);
-    $sql->query("INSERT INTO `Valori`(`num_persone`, `timestamp_lettura`) VALUES ('1','".date("Y-m-d H:i:s")."')");
-
-    $sql->close();
-}
-?>
-#+end_src
-
-*** UserHandler - Come prelevare i dati dal database
-#+begin_src php :tangle ./php/userHandler.php
-<?php
-if (is_null($_POST["data"])) {
-    $sql = new mysqli("localhost:3306", "root", "", "DatiSensore") or die("Connection error:" . $sql->error);
-    $result = $sql->query("SELECT * FROM `Valori`");
-
-    while ($row = $result->fetch_assoc()) {
-        print_r($row);
-        echo "</br>";
-    }
-
-    $sql->close();
-}
-?>
-#+end_src
+** Cablaggio di Arduino
+** Realizzazione interfaccia web
