@@ -25,18 +25,17 @@ Lo scopo del progetto è di realizzare un sistema di:
 - Visualizzare sulla pagina web gli avatar.
 
 * Descrizione del progetto
-L'acquisizione del movimento viene rilevata dal sensore PIR (HC-SR501) collegato all'arduino UNO.
+L'acquisizione del movimento viene rilevata dal sensore PIR (HC-SR501) collegato alla board Arduino UNO.
 
-Il sensore si collega alla board attraverso 3 cavi.
 [[./media/pinoutSensore.jpg]]
 
 Posizionando il sensore come in figura:
 - Il pin in alto va collegato alla messa a terra.
-- Il pin centrale va collegato ad una porta seriale, nel nostro caso alla porta seriale 2.
-- L'ultimo pin va collegato alla porta 5V dell'arduino.
+- Il pin centrale va collegato ad una porta seriale, nel nostro caso seriale 2.
+- L'ultimo pin va collegato ai 5V della board.
 [[./media/connessione.jpg]]
 
-Arduino UNO di base non è dotato di una porta Ethernet o di un'antenna wi-fi perciò è necessario dotare la board Arduino con uno shild Ethernet (W5100).
+Arduino UNO di base non è dotato di una porta Ethernet o di un'antenna wi-fi perciò è necessario dotare la board Arduino con uno shild Ethernet (W5500).
 Lo shield viene posizionato direttamente sopra la board Arduino, come in figura.
 Una volta collegato lo shild alla board bisogna programmare la board adeguatamente per sfruttare le capacità dello shild.
 [[./media/arduinoShield.jpg]]
@@ -47,11 +46,29 @@ Quando un utente visita la pagina vede un tot di avatar in base a quante persone
 
 * Realizzazione del progetto
 ** Installazione del web server
-#TODO: installare apache + PHP (*container* / VM)
+L'installazione del server web apache e di php viene eseguita tramite un docker container e la seguente container image:
+#+begin_src dockerfile :tangle www/Dockerfile
+FROM php:8.1.4-fpm-alpine3.14
+WORKDIR /var/www/localhost/htdocs
+RUN apk update && apk add php8-apache2 php8-mysqli
+ENTRYPOINT ["/usr/sbin/httpd", "-d", "foreground"]
+#+end_src
+
+Eseguire i seguenti comandi per creare e avviare il container:
+#+begin_src sh
+cd www
+docker build -t arduinoweb .
+docker run -dp 80:80 -v "$pwd":/var/www/localhost/htdocs arduinoweb
+#+end_src
 
 ** Creazione del Database
 *** Installazione mariadb
-#TODO: installare mariadb (*container* / VM)
+L'installazione del database server mariadb viene eseguita tramite un docker container.
+Eseguire i seguenti comandi per creare e avviare il container:
+#+begin_src sh
+cd DB
+docker run -p 3306:3306 -v "$PWD":/var/lib/mysql -e MARIADB_ROOT_PASSWORD=root -d mariadb:latest --port 3306
+#+end_src
 
 *** Creazione del Database
 Una volta attivato il daemon mariadb è possibile accedere da riga di comando fornendo il nome utente e la password.
@@ -63,8 +80,7 @@ Creare la tabella che conterrà i valori acquisiti dall'arduino.
 [[./media/db1.png]]
 
 Impostare la *primary key* e metterla *auto_increment*.
-[[./media/db3.png]]
-[[./media/db4.png]]
+[[./media/db3.png]] [[./media/db4.png]]
 
 ** Crezione del backend - PHP
 Ogni volta che il sensore PIR montato sull'arduino rileva movimento lo invia alla pagina "index.php".
@@ -86,7 +102,7 @@ Se questa fase fallisce allora viene chiamata la funzione "die" con un messaggio
 
 Una volta creato l'oggetto "mysqli" possiamo utilizzarne il metodo "query" per invia una query al database.
 
-#+begin_src php :tangle ./php/arduinoHandler.php
+#+begin_src php :tangle www/arduinoHandler.php
 <?php
 if (isset($_POST["datiSensore"])) {
     $sql = new mysqli("localhost:3306", "root", "", "DatiSensore") or die("Connection error:" . $sql->error);
@@ -98,7 +114,7 @@ if (isset($_POST["datiSensore"])) {
 #+end_src
 
 *** UserHandler - Come prelevare i dati dal database
-#+begin_src php :tangle ./php/userHandler.php
+#+begin_src php :tangle www/userHandler.php
 <?php
 if (is_null($_POST["data"])) {
     $sql = new mysqli("localhost:3306", "root", "", "DatiSensore") or die("Connection error:" . $sql->error);
