@@ -1,4 +1,4 @@
-#+TITLE: Progetto scuola
+#+TITLE: Epico progetto arduino
 
 * Table of Contents :TOC_3:noexport:
 - [[#introduzione][Introduzione]]
@@ -15,7 +15,6 @@
     - [[#librerie-e-inizializzazione-variabili][Librerie e inizializzazione variabili]]
     - [[#funzione-di-setup][Funzione di setup]]
     - [[#funzione-di-loop][Funzione di loop]]
-  - [[#realizzazione-interfaccia-web][Realizzazione interfaccia web]]
 
 * Introduzione
 Lo scopo del progetto è di realizzare un sistema di:
@@ -25,7 +24,7 @@ Lo scopo del progetto è di realizzare un sistema di:
 - Visualizzare sulla pagina web gli avatar.
 
 * Descrizione del progetto
-L'acquisizione del movimento viene rilevata dal sensore PIR (HC-SR501) collegato alla board Arduino UNO.
+Il segnale di movimento viene rilevato dal sensore PIR (HC-SR501) collegato alla board Arduino UNO.
 
 [[./media/pinoutSensore.jpg]]
 
@@ -35,30 +34,29 @@ Posizionando il sensore come in figura:
 - L'ultimo pin va collegato ai 5V della board.
 [[./media/connessione.jpg]]
 
-Arduino UNO di base non è dotato di una porta Ethernet o di un'antenna wi-fi perciò è necessario dotare la board Arduino con uno shild Ethernet (W5500).
+Arduino UNO di base non è dotato di connettore Ethernet RJ45 o di un'antenna wi-fi perciò è necessario dotare la board Arduino con uno shield Ethernet (W5500).
 Lo shield viene posizionato direttamente sopra la board Arduino, come in figura.
-Una volta collegato lo shild alla board bisogna programmare la board adeguatamente per sfruttare le capacità dello shild.
+Una volta collegato lo shield alla board bisogna programmare la board adeguatamente per sfruttare le capacità dello shield.
 [[./media/arduinoShield.jpg]]
 
-Una volta che il web server riceve il dato attraverso una richiesta HTTP POST, crea una connessione al database server e crea un nuovo record contenente il timestamp del rilevamento ed il valore(1).
+Una volta che il web server riceve il dato attraverso una richiesta HTTP POST, crea una connessione al database server ed inserisce un nuovo record contenente il timestamp del rilevamento ed il valore(1).
 
-Quando un utente visita la pagina vede un tot di avatar in base a quante persone/movimenti sono registrati nel database che sono stati registrati null'ultima ore.
+Quando un utente visita la pagina visualizza un tot di avatar in base a quante persone/movimenti sono registrati nel database che sono stati rilevati nell'ultima ora.
 
 * Realizzazione del progetto
 ** Installazione del web server
-L'installazione del server web apache e di php viene eseguita tramite un docker container e la seguente container image:
+L'installazione del server web apache e di php viene eseguita tramite un docker container ed il seguente dockerfile:
 #+begin_src dockerfile :tangle www/Dockerfile
-FROM php:8.1.4-fpm-alpine3.14
-WORKDIR /var/www/localhost/htdocs
-RUN apk update && apk add php8-apache2 php8-mysqli
-ENTRYPOINT ["/usr/sbin/httpd", "-d", "foreground"]
+FROM php:7.2-apache
+RUN apt update && docker-php-ext-install mysqli
+COPY . /var/www/html/
 #+end_src
 
 Eseguire i seguenti comandi per creare e avviare il container:
 #+begin_src sh
 cd www
 docker build -t arduinoweb .
-docker run -dp 80:80 -v "$pwd":/var/www/localhost/htdocs arduinoweb
+docker run -dp 80:80 -v "$pwd":/var/www/http arduinoweb
 #+end_src
 
 ** Creazione del Database
@@ -71,16 +69,20 @@ docker run -p 3306:3306 -v "$PWD":/var/lib/mysql -e MARIADB_ROOT_PASSWORD=root -
 #+end_src
 
 *** Creazione del Database
-Una volta attivato il daemon mariadb è possibile accedere da riga di comando fornendo il nome utente e la password.
+Una volta attivato il docker container è possibile accedervi da riga di comando ed effettuare il login al database daemon sempre da CLI.
+#+begin_src bash
+docker ps
+docker exec -it nomeContainer shell
+mariadb --user=nomeUtente -p
+#+end_src
 
-Creare il database e specificare quale database utilizzeremo.
-[[./media/db0.png]]
+Il container è dotato di un symlink alla directory /DB/ dell'host in /var/lib/mysql, è quindi possibile importare il codice SQL presente nel file [[./DB/src.sql][DB/src.sql]] utilizzando il comando (è necessario creare il *database prima* di eseguire il comando):
+#+begin_src bash
+mariadb --user=nomeUtente -p nomeDatabase < /var/lib/mysql/src.sql
+#+end_src
 
-Creare la tabella che conterrà i valori acquisiti dall'arduino.
-[[./media/db1.png]]
-
-Impostare la *primary key* e metterla *auto_increment*.
-[[./media/db3.png]] [[./media/db4.png]]
+Risultato finale:
+[[./media/db.png]]
 
 ** Crezione del backend - PHP
 Ogni volta che il sensore PIR montato sull'arduino rileva movimento lo invia alla pagina "index.php".
@@ -89,9 +91,9 @@ Index.php, oltre a contenere il codice HTML da mostrare all'utente, include 2 sc
 - *userHandler.php*: gestisce le richieste che riceve dall'utente
 
 *** ArduinoHandler - Come registrare il dato rilevato dal sensore nel database
-/Questo viene incluso utilizzando "include" in index.php./
+/Questo script viene incluso utilizzando "include" in index.php./
 
-Se nell'array "$_POST" esiste il campo "arduinoData", la richiesta proviene dall'arduino e bisogna registarla nel database.
+Se nell'array "$_POST" esiste il campo "datiSensore", la richiesta proviene dall'arduino e bisogna registarla nel database.
 
 Per registrare il valore nel database bisogna creare un oggetto "mysqli" fornendo come parametri:
 - *indirizzo IP + numero di porta*
@@ -100,12 +102,12 @@ Per registrare il valore nel database bisogna creare un oggetto "mysqli" fornend
 - *nome del database*
 Se questa fase fallisce allora viene chiamata la funzione "die" con un messaggio che mostra l'errore.
 
-Una volta creato l'oggetto "mysqli" possiamo utilizzarne il metodo "query" per invia una query al database.
+Una volta creato l'oggetto "mysqli" possiamo utilizzarne il metodo "query" per inviare una query al database.
 
 #+begin_src php :tangle www/arduinoHandler.php
 <?php
 if (isset($_POST["datiSensore"])) {
-    $sql = new mysqli("localhost:3306", "root", "", "DatiSensore") or die("Connection error:" . $sql->error);
+    $sql = new mysqli("172.17.0.2:3306", "root", "root", "DatiSensore") or die("Connection error:" . $sql->error);
     $sql->query("INSERT INTO `Valori`(`num_persone`, `timestamp_lettura`) VALUES ('1','".date("Y-m-d H:i:s")."')");
 
     $sql->close();
@@ -114,15 +116,35 @@ if (isset($_POST["datiSensore"])) {
 #+end_src
 
 *** UserHandler - Come prelevare i dati dal database
+/Questo script viene incluso utilizzando "include" in index.php./
+
+Per prelevare i dati presenti nel database bisogna creare un oggetto "mysqli" fornendo come parametri:
+- *indirizzo IP + numero di porta*
+- *username*
+- *password*
+- *nome del database*
+Se questa fase fallisce allora viene chiamata la funzione "die" con un messaggio che mostra l'errore.
+
+Una volta creato l'oggetto "mysqli" possiamo utilizzarne il metodo "query" per inviare una query di select.
+Scriviamo in una [[https://getbootstrap.com/docs/5.1/components/alerts/][alert]] il numero di persone rilevate nell'ultima ora, e creaiamo tante [[https://getbootstrap.com/docs/5.1/components/card/][card]] quanti rilevamente sono stati effettuati.
+
 #+begin_src php :tangle www/userHandler.php
 <?php
-if (is_null($_POST["data"])) {
-    $sql = new mysqli("localhost:3306", "root", "", "DatiSensore") or die("Connection error:" . $sql->error);
-    $result = $sql->query("SELECT * FROM `Valori`");
+if (is_null($_POST["datiSensore"])) {
+    $sql = new mysqli("172.17.0.2:3306", "root", "root", "DatiSensore") or die("Connection error:" . $sql->error);
+    $result = $sql->query("SELECT num_persone, timestamp_lettura FROM `Valori` having hour(timestamp_lettura)=".date("H")." and day(timestamp_lettura)=".date("d")." and month(timestamp_lettura)=".date("m")." and year(timestamp_lettura)=".date("Y"));
+
+    echo '<div class="alert alert-primary" role="alert">Nell\'ultima ora sono state rilevate '.$result->num_rows.' persone!</div>';
 
     while ($row = $result->fetch_assoc()) {
-        print_r($row);
-        echo "</br>";
+        echo "
+<div class=\"card\" style=\"width: 18rem; margin:10px; padding:10px\">
+  <img src=\"avatar.jpg\" class=\"card-img-top\">
+  <div class=\"card-body\">
+    <p class=\"card-text\">Avatar registrato {$row["timestamp_lettura"]}</p>
+  </div>
+</div>
+";
     }
 
     $sql->close();
@@ -157,7 +179,7 @@ String postData;
 #+end_src
 
 *** Funzione di setup
-Imposta la constante /pirSensor/ in modalità ingresso per la lettura dei dati.
+Imposta la costante /pirSensor/ in modalità ingresso per la lettura dei dati.
 Comincia la sessione ethernet e aspetta che si inizializzi l'ethernet shield.
 
 #+begin_src cpp :tangle ./Arduino/main.ino
@@ -171,7 +193,7 @@ void setup() {
 #+end_src
 
 *** Funzione di loop
-La funziona /loop/ viene chiamata costantemente, ogni ciclo controlla che il valore letto dal PIR sensor sia /HIGH/ e prova a connetersi al server.
+La funziona /loop/ viene richiamata costantemente, ogni ciclo controlla che il valore letto dal PIR sensor sia /HIGH/ e prova a connettersi al server.
 /client.connect(server, 80)/ restituisce /true/ se la connessione è avvenuta con successo e /false/ se qualcosa non è andato a buon fine.
 
 Se il valore letto è /HIGH/ e riesce a connettersi al server allora invia una HTTP/POST con il valore /data=movimento/ che il server dovrà poi ricevere e immagazzinare nel database.
@@ -198,5 +220,3 @@ void loop() {
 }
 #+end_src
 
-** Realizzazione interfaccia web
-#TODO: effettivamente scrivere il codice
