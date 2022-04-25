@@ -30,7 +30,7 @@ Il segnale di movimento viene rilevato dal sensore PIR (HC-SR501) collegato alla
 
 Posizionando il sensore come in figura:
 - Il pin in alto va collegato alla messa a terra.
-- Il pin centrale va collegato ad una porta seriale, nel nostro caso seriale 2.
+- Il pin centrale va collegato ad una porta digitale, nel nostro caso seriale 2.
 - L'ultimo pin va collegato ai 5V della board.
 [[./media/connessione.jpg]]
 
@@ -47,16 +47,16 @@ Quando un utente visita la pagina visualizza un tot di avatar in base a quante p
 ** Installazione del web server
 L'installazione del server web apache e di php viene eseguita tramite un docker container ed il seguente dockerfile:
 #+begin_src dockerfile :tangle www/Dockerfile
-FROM php:7.2-apache
-RUN apt update && docker-php-ext-install mysqli
-COPY . /var/www/html/
+  FROM php:7.2-apache
+  RUN apt update && docker-php-ext-install mysqli
+  COPY . /var/www/html/
 #+end_src
 
 Eseguire i seguenti comandi per creare e avviare il container:
 #+begin_src sh
-cd www
-docker build -t arduinoweb .
-docker run -dp 80:80 -v "$pwd":/var/www/http arduinoweb
+  cd www
+  docker build -t arduinoweb .
+  docker run -dp 80:80 -v "$pwd":/var/www/http arduinoweb
 #+end_src
 
 ** Creazione del Database
@@ -64,16 +64,16 @@ docker run -dp 80:80 -v "$pwd":/var/www/http arduinoweb
 L'installazione del database server mariadb viene eseguita tramite un docker container.
 Eseguire i seguenti comandi per creare e avviare il container:
 #+begin_src sh
-cd DB
-docker run -p 3306:3306 -v "$PWD":/var/lib/mysql -e MARIADB_ROOT_PASSWORD=root -d mariadb:latest --port 3306
+  cd DB
+  docker run -p 3306:3306 -v "$PWD":/var/lib/mysql -e MARIADB_ROOT_PASSWORD=root -d mariadb:latest --port 3306
 #+end_src
 
 *** Creazione del Database
 Una volta attivato il docker container è possibile accedervi da riga di comando ed effettuare il login al database daemon sempre da CLI.
 #+begin_src bash
-docker ps
-docker exec -it nomeContainer shell
-mariadb --user=nomeUtente -p
+  docker ps
+  docker exec -it nomeContainer shell
+  mariadb --user=nomeUtente -p
 #+end_src
 
 Il container è dotato di un symlink alla directory /DB/ dell'host in /var/lib/mysql, è quindi possibile importare il codice SQL presente nel file [[./DB/src.sql][DB/src.sql]] utilizzando il comando (è necessario creare il *database prima* di eseguire il comando):
@@ -105,14 +105,14 @@ Se questa fase fallisce allora viene chiamata la funzione "die" con un messaggio
 Una volta creato l'oggetto "mysqli" possiamo utilizzarne il metodo "query" per inviare una query al database.
 
 #+begin_src php :tangle www/arduinoHandler.php
-<?php
-if (isset($_POST["datiSensore"])) {
-    $sql = new mysqli("172.17.0.2:3306", "root", "root", "DatiSensore") or die("Connection error:" . $sql->error);
-    $sql->query("INSERT INTO `Valori`(`num_persone`, `timestamp_lettura`) VALUES ('1','".date("Y-m-d H:i:s")."')");
+  <?php
+  if (isset($_POST["datiSensore"])) {
+      $sql = new mysqli("172.17.0.1:3306", "root", "root", "DatiSensore") or die("Connection error:" . $sql->error);
+      $sql->query("INSERT INTO `Valori`(`num_persone`, `timestamp_lettura`) VALUES ('1','".date("Y-m-d H:i:s")."')");
 
-    $sql->close();
-}
-?>
+      $sql->close();
+  }
+  ?>
 #+end_src
 
 *** UserHandler - Come prelevare i dati dal database
@@ -130,31 +130,26 @@ Scriviamo in una [[https://getbootstrap.com/docs/5.1/components/alerts/][alert]]
 
 #+begin_src php :tangle www/userHandler.php
 <?php
-if (is_null($_POST["datiSensore"])) {
-    $sql = new mysqli("172.17.0.2:3306", "root", "root", "DatiSensore") or die("Connection error:" . $sql->error);
-    $result = $sql->query("SELECT num_persone, timestamp_lettura FROM `Valori` having hour(timestamp_lettura)=".date("H")." and day(timestamp_lettura)=".date("d")." and month(timestamp_lettura)=".date("m")." and year(timestamp_lettura)=".date("Y"));
+$sql = new mysqli("172.17.0.1:3306", "root", "root", "DatiSensore") or die("Connection error:" . $sql->error);
 
-    echo '<div class="alert alert-primary" role="alert">Nell\'ultima ora sono state rilevate '.$result->num_rows.' persone!</div>';
+$result = $sql->query("SELECT num_persone, timestamp_lettura FROM `Valori` having hour(timestamp_lettura)=" . date("H") . " and day(timestamp_lettura)=" . date("d") . " and month(timestamp_lettura)=" . date("m") . " and year(timestamp_lettura)=" . date("Y"));
 
-    while ($row = $result->fetch_assoc()) {
-        echo "
+echo '<div class="alert alert-primary" role="alert">Nell\'ultima ora sono state rilevate ' . $result->num_rows . ' persone!</div>';
+while ($row = $result->fetch_assoc()) {
+    echo "
 <div class=\"card\" style=\"width: 18rem; margin:10px; padding:10px\">
-  <img src=\"avatar.jpg\" class=\"card-img-top\">
-  <div class=\"card-body\">
-    <p class=\"card-text\">Avatar registrato {$row["timestamp_lettura"]}</p>
-  </div>
+    <img src=\"avatar.jpg\" class=\"card-img-top\">
+    <div class=\"card-body\">
+        <p class=\"card-text\">Avatar registrato {$row["timestamp_lettura"]}</p>
+    </div>
 </div>
 ";
-    }
-
-    $sql->close();
 }
-?>
+
+$sql->close();
 #+end_src
 
 ** Sketch arduino "main.imo"
-#TODO: aggiungere buffer di memoria per quando non riesce a connettersi al server
-
 *** Librerie e inizializzazione variabili
 La libreria /Ethernet.h/ permette ad Arduino con dispositivi di reti basati su W5100 / W5200 / *W5500* di connetersi alla rete.
 #+begin_src cpp :tangle ./Arduino/main.ino
@@ -172,7 +167,7 @@ Crea una constante /pirSensor/ con il valore 2 che è il pin sulla board arduino
 byte mac[] = { 0xA8, 0x61, 0x0A, 0xAE, 0x84, 0xB4 };
 IPAddress ip(192, 168, 1, 177);
 
-IPAddress server(192,168,1,146);
+IPAddress server(192,168,1,100);
 
 EthernetClient client;
 String postData;

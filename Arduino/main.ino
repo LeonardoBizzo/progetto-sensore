@@ -5,7 +5,7 @@
 byte mac[] = { 0xA8, 0x61, 0x0A, 0xAE, 0x84, 0xB4 };
 IPAddress ip(192, 168, 1, 177);
 
-IPAddress server(192,168,1,146);
+IPAddress server(192,168,1,100);
 
 EthernetClient client;
 String postData;

@@ -11,11 +11,21 @@
 <body class="container">
     <?php include "./arduinoHandler.php"; ?>
 
-    <div class="container">
-        <div class="row">
-            <?php include "./userHandler.php"; ?>
-        </div>
-    </div>
+     <div class="row"></div>
+
+    <script>
+        let container = document.getElementsByClassName("row")[0];
+        setInterval(function() {
+            let req = new XMLHttpRequest();
+
+            req.onload = function() {
+                container.innerHTML = req.response;
+            };
+
+            req.open("get", "/userHandler.php", true);
+            req.send();
+        }, 1000);
+    </script>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p" crossorigin="anonymous"></script>
 
